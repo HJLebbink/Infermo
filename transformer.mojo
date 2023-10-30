@@ -67,7 +67,7 @@
 #     inputs.requires_grad = False
 #     var true_vals = nn.tensor(shape(batch_size,seq_len,d_vocab))
 #     true_vals.requires_grad = False
-    
+
 #     # architecture of a n layer Transformer
 #     var x = embed(nn,d_vocab,d_Model,batch_size,init_std,inputs)
 #     for layer in range(num_layers):
@@ -84,8 +84,8 @@
 #             use_mlp=use_mlp,
 #             init_std=init_std,
 #             x=x
-#         )  
-#     x = unembed(nn,d_vocab,d_Model,batch_size,init_std,x)  
+#         )
+#     x = unembed(nn,d_vocab,d_Model,batch_size,init_std,x)
 #     var logits = nn.softmax(x)
 #     var loss = nn.ce(true_vals,logits)
 
@@ -112,7 +112,7 @@
 #             # inputs.print_data()
 #             # true_vals.print_data()
 #             # res.print_data()
-        
+
 #         # compute grads
 #         nn.backward(loss)
 

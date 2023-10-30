@@ -1,4 +1,3 @@
-
 from memory import memset_zero, memcpy
 from memory.unsafe import Pointer
 from memory import memset_zero, memcpy
@@ -10,6 +9,7 @@ from math import sin, cos, log, sqrt, exp
 
 from ..helpers.shape import shape, Vec
 
+
 # @value
 @register_passable("trivial")
 struct Tensor:
@@ -19,8 +19,8 @@ struct Tensor:
     var shape: Pointer[Int]
     var strides: Pointer[Int]
     var data: DTypePointer[DType.float32]
-    var grad: DTypePointer[DType.float32] 
-    var velocity: DTypePointer[DType.float32] 
+    var grad: DTypePointer[DType.float32]
+    var velocity: DTypePointer[DType.float32]
     var parents: Pointer[Int]
     var parents_dynamic: Pointer[Bool]
     var num_parents: Int
@@ -34,25 +34,28 @@ struct Tensor:
     fn __init__(_shape: DynamicVector[Int], requires_grad: Bool = True) -> Self:
         let _num_dims = len(_shape)
         var _cap = _shape[0]
-        for i in range(1,_num_dims):
+        for i in range(1, _num_dims):
             _cap *= _shape[i]
 
         let shape = Pointer[Int].alloc(_num_dims)
         for i in range(_num_dims):
-            shape.store(i,_shape[i])
+            shape.store(i, _shape[i])
 
         let strides = Pointer[Int].alloc(_num_dims)
-        memset_zero(strides,_num_dims)
-        strides.store(_num_dims-1,1)
-        for i in range(_num_dims-1):
-            strides.store(_num_dims - i - 2, strides.load(_num_dims - i - 1) * _shape[_num_dims - i - 1])
+        memset_zero(strides, _num_dims)
+        strides.store(_num_dims - 1, 1)
+        for i in range(_num_dims - 1):
+            strides.store(
+                _num_dims - i - 2,
+                strides.load(_num_dims - i - 1) * _shape[_num_dims - i - 1],
+            )
 
         let data = DTypePointer[DType.float32].alloc(_cap)
         memset_zero(data, _cap)
 
         let grad = DTypePointer[DType.float32].alloc(_cap)
         memset_zero(grad, _cap)
-    	
+
         let velocity = DTypePointer[DType.float32].alloc(_cap)
         memset_zero(velocity, _cap)
 
@@ -61,15 +64,15 @@ struct Tensor:
 
         let parents_dynamic = Pointer[Bool].alloc(64)
         for i in range(64):
-            parents_dynamic.store(i,False)
-        let num_parents = 0 
+            parents_dynamic.store(i, False)
+        let num_parents = 0
 
-        let name = StringRef('none')
+        let name = StringRef("none")
 
         let other_params = Pointer[Int].alloc(64)
         memset_zero(other_params, 64)
 
-        return Tensor{
+        return Tensor {
             id: 1,
             name: name,
             num_dims: _num_dims,
@@ -86,7 +89,7 @@ struct Tensor:
             is_dynamic: False,
             visited: False,
             requires_grad: True,
-            other_params: other_params
+            other_params: other_params,
         }
 
     # fn __del__(owned self):
@@ -98,7 +101,6 @@ struct Tensor:
     #     self.velocity.free()
     #     self.other_params.free()
     #     self.parents.free()
-
 
     @always_inline
     fn getId(self) -> Int:
@@ -118,7 +120,7 @@ struct Tensor:
         let len = self.num_dims
         for i in range(len):
             print_no_newline(self.shape.load(i))
-            if (i < len-1):
+            if i < len - 1:
                 print_no_newline(", ")
         print_no_newline(" ]\n")
 
@@ -128,7 +130,7 @@ struct Tensor:
         let len = self.num_dims
         for i in range(len):
             print_no_newline(self.strides.load(i))
-            if (i < len-1):
+            if i < len - 1:
                 print_no_newline(", ")
         print_no_newline(" ]\n")
 
@@ -138,11 +140,11 @@ struct Tensor:
 
     @always_inline
     fn fill(self, val: Float32):
-        if(val == 0):
-            memset_zero(self.data,self.cap)
+        if val == 0:
+            memset_zero(self.data, self.cap)
         else:
             for i in range(self.cap):
-                self.data.store(i,val)
+                self.data.store(i, val)
 
     @always_inline
     fn set_data(self, val: DTypePointer[DType.float32]):
@@ -161,25 +163,29 @@ struct Tensor:
     fn randHe(self):
         seed()
         let pi = 3.14159265358979
-        let u1 = DTypePointer[DType.float32].alloc(self.cap) 
-        let u2 = DTypePointer[DType.float32].alloc(self.cap) 
+        let u1 = DTypePointer[DType.float32].alloc(self.cap)
+        let u2 = DTypePointer[DType.float32].alloc(self.cap)
         rand(u1, self.cap)
         rand(u2, self.cap)
         for i in range(self.cap):
-            let z = sqrt(-Float32(2.0) * log(u1.load(i))) * cos(Float32(2.0) * pi * u2.load(i))
-            let sigma = sqrt( Float32(2.0) / self.shape[self.num_dims-1]) 
+            let z = sqrt(-Float32(2.0) * log(u1.load(i))) * cos(
+                Float32(2.0) * pi * u2.load(i)
+            )
+            let sigma = sqrt(Float32(2.0) / self.shape[self.num_dims - 1])
             self.set_data(i, z * sigma)
 
     fn randn(self, std: Float32 = Float32(1.0), mu: Float32 = Float32(0.0)):
         seed()
         let pi = 3.14159265358979
-        let u1 = DTypePointer[DType.float32].alloc(self.cap) 
-        let u2 = DTypePointer[DType.float32].alloc(self.cap) 
+        let u1 = DTypePointer[DType.float32].alloc(self.cap)
+        let u2 = DTypePointer[DType.float32].alloc(self.cap)
         rand(u1, self.cap)
         rand(u2, self.cap)
         for i in range(self.cap):
-            let z = sqrt(-Float32(2.0) * log(u1.load(i))) * cos(Float32(2.0) * pi * u2.load(i))
-            self.set_data(i, z * std + mu) 
+            let z = sqrt(-Float32(2.0) * log(u1.load(i))) * cos(
+                Float32(2.0) * pi * u2.load(i)
+            )
+            self.set_data(i, z * std + mu)
 
     @always_inline
     fn set_data(self, pos: DynamicVector[Int], val: Float32):
@@ -203,62 +209,62 @@ struct Tensor:
     @always_inline
     fn print_data(self):
         let num_dims = self.num_dims
-        let row: Int = self.shape[num_dims-2]
-        let cols: Int = self.shape[num_dims-1]
+        let row: Int = self.shape[num_dims - 2]
+        let cols: Int = self.shape[num_dims - 1]
         let col_strides: Int = (self.strides[0] * self.shape[0]) // cols
         print_no_newline("<Tensor: ")
         for i in range(col_strides):
-            if(col_strides > 10 and i > 4 and i < col_strides - 5):
-                if(i == 5):
+            if col_strides > 10 and i > 4 and i < col_strides - 5:
+                if i == 5:
                     print("                 ... ")
                 continue
             else:
-                if(i > 0):
+                if i > 0:
                     print_no_newline("           ")
                 else:
                     print_no_newline("[ ")
 
                 var indent = 0
-                for d in range(num_dims-1):
-                    if(cols * i % self.strides[d] == 0):
+                for d in range(num_dims - 1):
+                    if cols * i % self.strides[d] == 0:
                         print_no_newline("[ ")
                         indent += 1
                     else:
                         print_no_newline("  ")
 
                 for j in range(cols):
-                    if(cols > 10 and j >= 3 and j < cols-3):
-                        if(j == 3):
+                    if cols > 10 and j >= 3 and j < cols - 3:
+                        if j == 3:
                             print_no_newline("... , ")
                         continue
                     else:
                         let idx = cols * i + j
                         print_no_newline(self.data.load(idx))
-                        if(j != cols-1):
-                            print_no_newline(', ')
+                        if j != cols - 1:
+                            print_no_newline(", ")
 
-                for d in range(num_dims-2,-1,-1):
-                    if(cols * (i + 1) % self.strides[d] == 0):
+                for d in range(num_dims - 2, -1, -1):
+                    if cols * (i + 1) % self.strides[d] == 0:
                         print_no_newline(" ]")
 
-                if(i < col_strides-1):
+                if i < col_strides - 1:
                     print_no_newline(", ")
                     put_new_line()
                 else:
                     print_no_newline(" ], shape: [")
                     for i in range(num_dims):
                         print_no_newline(self.shape[i])
-                        if(i < num_dims-1):
-                            print_no_newline(",")                        
-                    print_no_newline("], Data>\n\n")  
+                        if i < num_dims - 1:
+                            print_no_newline(",")
+                    print_no_newline("], Data>\n\n")
 
     @always_inline
     fn fill_grad(self, val: Float32):
-        if(val == 0):
-            memset_zero(self.grad,self.cap)
+        if val == 0:
+            memset_zero(self.grad, self.cap)
         else:
             for i in range(self.cap):
-                self.grad.store(i,val)
+                self.grad.store(i, val)
 
     @always_inline
     fn set_grad(self, val: DTypePointer[DType.float32]):
@@ -271,61 +277,61 @@ struct Tensor:
     @always_inline
     fn print_grad(self):
         let num_dims = self.num_dims
-        let cols: Int = self.shape[num_dims-1]
+        let cols: Int = self.shape[num_dims - 1]
         let col_strides: Int = (self.strides[0] * self.shape[0]) // cols
         print_no_newline("<Tensor: ")
         for i in range(col_strides):
-            if(col_strides > 10 and i > 4 and i < col_strides - 5):
-                if(i == 5):
+            if col_strides > 10 and i > 4 and i < col_strides - 5:
+                if i == 5:
                     print("                 ... ")
                 continue
             else:
-                if(i > 0):
+                if i > 0:
                     print_no_newline("           ")
                 else:
                     print_no_newline("[ ")
 
                 var indent = 0
-                for d in range(num_dims-1):
-                    if(cols * i % self.strides[d] == 0):
+                for d in range(num_dims - 1):
+                    if cols * i % self.strides[d] == 0:
                         print_no_newline("[ ")
                         indent += 1
                     else:
                         print_no_newline("  ")
 
                 for j in range(cols):
-                    if(cols > 10 and j >= 3 and j < cols-3):
-                        if(j == 3):
+                    if cols > 10 and j >= 3 and j < cols - 3:
+                        if j == 3:
                             print_no_newline("... , ")
                         continue
                     else:
                         let idx = cols * i + j
                         print_no_newline(self.grad.load(idx))
-                        if(j != cols-1):
-                            print_no_newline(', ')
+                        if j != cols - 1:
+                            print_no_newline(", ")
 
-                for d in range(num_dims-2,-1,-1):
-                    if(cols * (i + 1) % self.strides[d] == 0):
+                for d in range(num_dims - 2, -1, -1):
+                    if cols * (i + 1) % self.strides[d] == 0:
                         print_no_newline(" ]")
 
-                if(i < col_strides-1):
+                if i < col_strides - 1:
                     print_no_newline(", ")
                     put_new_line()
                 else:
                     print_no_newline(" ], shape: [")
                     for i in range(num_dims):
                         print_no_newline(self.shape[i])
-                        if(i < num_dims-1):
-                            print_no_newline(",")                        
-                    print_no_newline("], Gradient>\n\n")  
+                        if i < num_dims - 1:
+                            print_no_newline(",")
+                    print_no_newline("], Gradient>\n\n")
 
     @always_inline
     fn fill_velocity(self, val: Float32):
-        if(val == 0):
-            memset_zero(self.velocity,self.cap)
+        if val == 0:
+            memset_zero(self.velocity, self.cap)
         else:
             for i in range(self.cap):
-                self.velocity.store(i,val)
+                self.velocity.store(i, val)
 
     @always_inline
     fn set_velocity(self, val: DTypePointer[DType.float32]):
@@ -357,54 +363,54 @@ struct Tensor:
     @always_inline
     fn print_velocity(self):
         let num_dims = self.num_dims
-        let row: Int = self.shape[num_dims-2]
-        let cols: Int = self.shape[num_dims-1]
+        let row: Int = self.shape[num_dims - 2]
+        let cols: Int = self.shape[num_dims - 1]
         let col_strides: Int = (self.strides[0] * self.shape[0]) // cols
         print_no_newline("<Tensor: ")
         for i in range(col_strides):
-            if(col_strides > 10 and i > 4 and i < col_strides - 5):
-                if(i == 5):
+            if col_strides > 10 and i > 4 and i < col_strides - 5:
+                if i == 5:
                     print("                 ... ")
                 continue
             else:
-                if(i > 0):
+                if i > 0:
                     print_no_newline("           ")
                 else:
                     print_no_newline("[ ")
 
                 var indent = 0
-                for d in range(num_dims-1):
-                    if(cols * i % self.strides[d] == 0):
+                for d in range(num_dims - 1):
+                    if cols * i % self.strides[d] == 0:
                         print_no_newline("[ ")
                         indent += 1
                     else:
                         print_no_newline("  ")
 
                 for j in range(cols):
-                    if(cols > 10 and j >= 3 and j < cols-3):
-                        if(j == 3):
+                    if cols > 10 and j >= 3 and j < cols - 3:
+                        if j == 3:
                             print_no_newline("... , ")
                         continue
                     else:
                         let idx = cols * i + j
                         print_no_newline(self.velocity.load(idx))
-                        if(j != cols-1):
-                            print_no_newline(', ')
+                        if j != cols - 1:
+                            print_no_newline(", ")
 
-                for d in range(num_dims-2,-1,-1):
-                    if(cols * (i + 1) % self.strides[d] == 0):
+                for d in range(num_dims - 2, -1, -1):
+                    if cols * (i + 1) % self.strides[d] == 0:
                         print_no_newline(" ]")
 
-                if(i < col_strides-1):
+                if i < col_strides - 1:
                     print_no_newline(", ")
                     put_new_line()
                 else:
                     print_no_newline(" ], shape: [")
                     for i in range(num_dims):
                         print_no_newline(self.shape[i])
-                        if(i < num_dims-1):
-                            print_no_newline(",")                        
-                    print_no_newline("], velocity>\n\n")              
+                        if i < num_dims - 1:
+                            print_no_newline(",")
+                    print_no_newline("], velocity>\n\n")
 
     @always_inline
     fn add_static_parent(inout self, parentId: Int):
@@ -413,14 +419,13 @@ struct Tensor:
         self.parents_dynamic.store(index, False)
         self.num_parents += 1
 
-
     @always_inline
     fn set_parent(inout self, index: Int, other: Tensor):
-        self.parents.store(index,other.id)
-        if(other.is_dynamic):
-            self.parents_dynamic.store(index,True)
+        self.parents.store(index, other.id)
+        if other.is_dynamic:
+            self.parents_dynamic.store(index, True)
         else:
-            self.parents_dynamic.store(index,False)
+            self.parents_dynamic.store(index, False)
 
     @always_inline
     fn get_parent(self, index: Int) -> Int:
@@ -432,58 +437,57 @@ struct Tensor:
         let len = self.num_parents
         for i in range(len):
             print_no_newline(self.parents.load(i))
-            if (i < len-1):
+            if i < len - 1:
                 print_no_newline(", ")
         print_no_newline(" ]\n")
 
-    
     @always_inline
     fn print_arg_max(self):
         let num_dims = self.num_dims
-        let row: Int = self.shape[num_dims-2]
-        let cols: Int = self.shape[num_dims-1]
+        let row: Int = self.shape[num_dims - 2]
+        let cols: Int = self.shape[num_dims - 1]
         let col_strides: Int = (self.strides[0] * self.shape[0]) // cols
         print_no_newline("<Tensor: ")
         for i in range(col_strides):
-            if(col_strides > 10 and i > 4 and i < col_strides - 5):
-                if(i == 5):
+            if col_strides > 10 and i > 4 and i < col_strides - 5:
+                if i == 5:
                     print("                 ... ")
                 continue
             else:
-                if(i > 0):
+                if i > 0:
                     print_no_newline("           ")
                 else:
                     print_no_newline("[ ")
 
                 var indent = 0
-                for d in range(num_dims-2):
-                    if(cols * i % self.strides[d] == 0):
+                for d in range(num_dims - 2):
+                    if cols * i % self.strides[d] == 0:
                         print_no_newline("[ ")
                         indent += 1
                     else:
                         print_no_newline("  ")
 
-                var max : Float32 = 0
+                var max: Float32 = 0
                 var max_counter: Float32 = 0
                 var max_idx: Float32 = 0
                 for j in range(cols):
                     let idx = cols * i + j
                     max_counter += Float32(1)
-                    if(self.data.load(idx) > max):
+                    if self.data.load(idx) > max:
                         max = self.data.load(idx)
-                        max_idx = max_counter                   
+                        max_idx = max_counter
                 print_no_newline(max_idx)
-                for d in range(num_dims-2,0,-1):
-                    if(cols * (i + 1) % self.strides[d] == 0):
+                for d in range(num_dims - 2, 0, -1):
+                    if cols * (i + 1) % self.strides[d] == 0:
                         print_no_newline(" ]")
 
-                if(i < col_strides-1):
+                if i < col_strides - 1:
                     print_no_newline(", ")
                     put_new_line()
                 else:
                     print_no_newline(" ], shape: [")
                     for i in range(num_dims):
                         print_no_newline(self.shape[i])
-                        if(i < num_dims-1):
-                            print_no_newline(",")                        
-                    print_no_newline("], Data>\n\n")  
+                        if i < num_dims - 1:
+                            print_no_newline(",")
+                    print_no_newline("], Data>\n\n")
