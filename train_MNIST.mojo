@@ -25,6 +25,10 @@ struct Model:
         self.l3 = Linear(self.nn, 64, 64, batch_size, add_bias=True, activation="relu")
         self.l4 = Linear(self.nn, 64, 10, batch_size, add_bias=True, activation="none")
 
+    fn print_data(self): 
+        self.l1.print_data()
+
+
     @always_inline
     fn forward(
         inout self,
@@ -63,7 +67,7 @@ fn main() raises:
 
     var model = Model()
 
-    let num_epochs = 10000
+    let num_epochs = 20000
     var loss_sum: Float32 = 0
     var avg_acc: Float32 = 0
     let every = 500
@@ -85,6 +89,8 @@ fn main() raises:
         loss_sum += res.get[0, Float32]()
         avg_acc += res.get[1, Float32]()
         if epoch % every == 0:
+            model.print_data()
+
             print(
                 "Epoch",
                 epoch,
@@ -93,5 +99,7 @@ fn main() raises:
                 ", avg_accuracy =",
                 avg_acc / every,
             )
+
+
             loss_sum = 0
             avg_acc = 0

@@ -4,11 +4,16 @@ from memory import memset_zero, memcpy
 from random import rand
 from runtime.llcl import Runtime
 from algorithm import vectorize, parallelize
-from random import rand, random_si64, seed, randint
+from random import rand, random_si64, seed, randint, random_float64
 from math import sin, cos, log, sqrt, exp
+from python import Python
+
+from tensor import Tensor as Tensor2
 
 from ..helpers.shape import shape, Vec
 
+alias float_type = DType.float64
+alias simd_width = 2 * simdwidthof[float_type]()
 
 # @value
 @register_passable("trivial")
@@ -205,6 +210,43 @@ struct Tensor:
             index += self.strides[j] * pos[j]
 
         self.data.store(index, val)
+
+    @always_inline
+    fn plot_data(self):
+        try:
+            alias scale = 5
+            alias dpi = 64
+            alias width = 28
+            alias height = 28
+
+            # sudo apt-get install python3-tk
+            let np = Python.import_module("numpy") # "pip install numpy"
+            let plt = Python.import_module("matplotlib.pyplot") # "python3 -m pip install -U matplotlib"
+
+            let numpy_array = np.zeros((height, width), np.float32)
+
+            #print(self.data.load(28*5 + 14))
+
+
+            var offset: Int = 0
+            for row in range(height):
+                for col in range(width):
+                    #_ = numpy_array.itemset((col, row), random_float64())
+                    _ = numpy_array.itemset((col, row), self.data.load(offset))
+                    offset += 1
+
+            let numpy_array_norm = (numpy_array-np.min(numpy_array))/(np.max(numpy_array)-np.min(numpy_array))
+
+            _ = plt.ion()
+
+            let fig = plt.figure(1, [scale, scale], dpi)
+            _ = plt.title("Weights")
+            _ = plt.imshow(numpy_array_norm)
+            _ = fig.canvas.draw()
+            _ = fig.canvas.flush_events()
+        except e:
+            print("failed to show plot:", e)
+
 
     @always_inline
     fn print_data(self):

@@ -70,7 +70,8 @@ struct Linear:
         add_bias: Bool = True,
         activation: String = "relu",
     ):
-        self.W = nn.tensor(shape(in_neurons, out_neurons))
+        var s = shape(in_neurons, out_neurons)
+        self.W = nn.tensor(s)
         self.W.randHe()
         self.bias = nn.tensor(shape(1, out_neurons))
         self.bias.fill(0.01)
@@ -82,6 +83,10 @@ struct Linear:
         if self.activation == "relu":
             return nn.relu(added)
         return added
+
+    fn print_data(self):
+        #self.W.print_shape()
+        self.W.plot_data()
 
 
 struct Mlp:
